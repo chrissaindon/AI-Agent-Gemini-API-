@@ -7,6 +7,7 @@ from functions.get_files_info import schema_get_files_info
 from functions.get_file_content import schema_get_file_content
 from functions.write_file import schema_write_file
 from functions.run_python_file import schema_run_python_file
+from call_function import call_function
 
 
 
@@ -74,8 +75,20 @@ def main():
     )
     
     if response.function_calls is not None:
+        func_call_list = []
         for function_call_part in response.function_calls:
-            print(f'Calling function: {function_call_part.name}({function_call_part.args})')
+            function_call_result = call_function(function_call_part, verbose=verbose)
+        
+            if function_call_result.parts[0].function_response.response is None:
+                raise Exception("Fatal error: no result given")
+        
+            else:
+                func_call_list.append(function_call_result.parts[0])
+            
+            
+            if verbose:    
+                print(f"-> {function_call_result.parts[0].function_response.response}")
+                print(func_call_list)
 
     else:
         print(f"User prompt: {user_prompt}")
