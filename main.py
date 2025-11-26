@@ -44,8 +44,9 @@ def main():
     -Execute Python files with optional arguments
     -Write or overwrite files
 
-    All paths you provide should be relative to the working directory.
+    Explore the users prompt with tools, don't ask for file paths
     You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
+    Please break down the response in an easy to parse manner
     '''
     
     
@@ -66,6 +67,41 @@ def main():
     api_key = os.environ.get("GEMINI_API_KEY")
     client = genai.Client(api_key=api_key)
 
+
+    iters=0
+    MAX_ITERS=20
+
+    while True:
+        iters=+1
+        if iters > MAX_ITERS:
+            print(f"Maximum iterations ({MAX_ITERS}) reached")
+            break
+
+        try:
+            final_response = generate_content(
+                client,
+                messages, 
+                verbose, 
+                system_prompt, 
+                available_functions
+        )
+        except Exception as e:
+            print(f"Error in generate_content: {e}")
+            break
+    
+    
+    
+        if final_response:
+            print("Final response:")
+            print(final_response)
+            break
+    
+    
+    
+    
+    
+
+def generate_content(client, messages, verbose, system_prompt, available_functions):
     response = client.models.generate_content(
         model = 'gemini-2.0-flash-001', 
         contents = messages,
@@ -73,29 +109,38 @@ def main():
             tools=[available_functions], system_instruction=system_prompt
         )
     )
-    
-    if response.function_calls is not None:
-        func_call_list = []
-        for function_call_part in response.function_calls:
-            function_call_result = call_function(function_call_part, verbose=verbose)
-        
-            if function_call_result.parts[0].function_response.response is None:
-                raise Exception("Fatal error: no result given")
-        
-            else:
-                func_call_list.append(function_call_result.parts[0])
-            
-            
-            if verbose:    
-                print(f"-> {function_call_result.parts[0].function_response.response}")
-                print(func_call_list)
 
-    else:
-        print(f"User prompt: {user_prompt}")
-        print("Prompt tokens:", response.usage_metadata.prompt_token_count) 
-        print("Response tokens:", response.usage_metadata.candidates_token_count)
-        print("Response:")
-        print(response.text)
-    
+    if response.candidates:
+            for response_candidate in response.candidates:
+                print("role:", response_candidate.content.role)
+                if response_candidate.content.role == "model":
+                    messages.append(response_candidate.content)
+        
+    if not response.function_calls:
+        if verbose:    
+            print("Prompt tokens:", response.usage_metadata.prompt_token_count) 
+            print("Response tokens:", response.usage_metadata.candidates_token_count)
+        return response.text
+        
+        
+       
+    func_call_list = []
+    for function_call_part in response.function_calls:
+        function_call_result = call_function(function_call_part, verbose=verbose)
+            
+        if function_call_result.parts[0].function_response.response is None:
+            raise Exception("Fatal error: no result given")
+            
+        else:
+            func_call_list.append(function_call_result.parts[0])
+                
+                
+        if verbose:    
+            print(f"-> {function_call_result.parts[0].function_response.response}")
+            print(func_call_list)
+
+    if func_call_list:
+        messages.append(types.Content(role="user", parts=func_call_list))
+
 
 if __name__ == "__main__": main()
