@@ -43,7 +43,8 @@ def main():
     -Read file contents
     -Execute Python files with optional arguments
     -Write or overwrite files
-
+    
+    Please fix any bugs the user brings up by using the previously mentioned actions
     Explore the users prompt with tools, don't ask for file paths
     You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
     Please break down the response in an easy to parse manner
